@@ -14,26 +14,26 @@ test('A contextual biography replay is retried without previous speech',async()=
   const requests=[],deltas=[];
   const translate=createLocalTranslator({fetchImpl:async(_,options)=>{
     const request=JSON.parse(options.body),input=JSON.parse(request.messages[1].content.replace(/\n\/no_think$/,''));requests.push(input);
-    const text=input.previous_English.length?'此前那个人的全部经历。'.repeat(10):'在聊天区提问。';
+    const text=input.previous_English.length?'\u6b64\u524d\u90a3\u4e2a\u4eba\u7684\u5168\u90e8\u7ecf\u5386。'.repeat(10):'\u5728\u804a\u5929\u533a\u63d0\u95ee。';
     return new Response(`data: ${JSON.stringify({choices:[{delta:{content:text}}]})}\n\ndata: ${JSON.stringify({choices:[{delta:{},finish_reason:'stop'}]})}\n\n`);
   }});
   const result=await translate({text:'questions in the chat.',context:[{en:'An older biography.'},{en:'Go ahead and ask your'}],topic:'',glossary:[],signal:AbortSignal.timeout(1000),onDelta:x=>deltas.push(x)});
   assert.deepEqual(requests[0].previous_English,['Go ahead and ask your']);assert.deepEqual(requests[1].previous_English,[]);
-  assert.equal(result.text,'在聊天区提问。');assert.deepEqual(deltas,['在聊天区提问。']);
+  assert.equal(result.text,'\u5728\u804a\u5929\u533a\u63d0\u95ee。');assert.deepEqual(deltas,['\u5728\u804a\u5929\u533a\u63d0\u95ee。']);
 });
 test('UTF-8 SSE split across arbitrary bytes and CRLF boundaries',async()=>{
-  const encoded=new TextEncoder().encode('data: {"delta":"中文"}\r\n\r\ndata: [DONE]\n\n');
+  const encoded=new TextEncoder().encode('data: {"delta":"\u4e2d\u6587"}\r\n\r\ndata: [DONE]\n\n');
   const body=new ReadableStream({start(controller){for(const byte of encoded)controller.enqueue(Uint8Array.of(byte));controller.close();}});
-  const values=[];for await(const value of parseSse(body))values.push(value);assert.deepEqual(values,[{delta:'中文'}]);
+  const values=[];for await(const value of parseSse(body))values.push(value);assert.deepEqual(values,[{delta:'\u4e2d\u6587'}]);
 });
 test('Late speculative translation cannot overwrite final correction',async()=>{
   const events=[];let stale;
-  const pipeline=new CaptionPipeline({draftDelay:0,concurrency:2,emit:value=>events.push(value),translate:async job=>{if(!job.final){stale=job.onDelta;await wait(90);job.onDelta('过期暂译',90);return{text:'过期暂译'};}job.onDelta('是十五，不是五十',1);return{text:'是十五，不是五十',firstMs:1};}});
+  const pipeline=new CaptionPipeline({draftDelay:0,concurrency:2,emit:value=>events.push(value),translate:async job=>{if(!job.final){stale=job.onDelta;await wait(90);job.onDelta('\u8fc7\u671f\u6682\u8bd1',90);return{text:'\u8fc7\u671f\u6682\u8bd1'};}job.onDelta('\u662f\u5341\u4e94，\u4e0d\u662f\u4e94\u5341',1);return{text:'\u662f\u5341\u4e94，\u4e0d\u662f\u4e94\u5341',firstMs:1};}});
   pipeline.transcript({id:'one',text:'fifty percent maybe'});await until(()=>stale);pipeline.transcript({id:'one',text:'fifteen, not fifty percent',final:true});await wait(120);
-  assert.ok(events.some(x=>x.type==='translation' && x.final && x.text==='是十五，不是五十'));assert.ok(!events.some(x=>x.text==='过期暂译'));pipeline.close();
+  assert.ok(events.some(x=>x.type==='translation' && x.final && x.text==='\u662f\u5341\u4e94，\u4e0d\u662f\u4e94\u5341'));assert.ok(!events.some(x=>x.text==='\u8fc7\u671f\u6682\u8bd1'));pipeline.close();
 });
 test('A failed segment can be retried and later speech continues',async()=>{
-  let calls=0;const events=[];const pipeline=new CaptionPipeline({emit:x=>events.push(x),translate:async()=>{if(++calls===1)throw new Error('temporary');return{text:'重试成功'};}});
+  let calls=0;const events=[];const pipeline=new CaptionPipeline({emit:x=>events.push(x),translate:async()=>{if(++calls===1)throw new Error('temporary');return{text:'\u91cd\u8bd5\u6210\u529f'};}});
   pipeline.transcript({id:'first',text:'original source',final:true});await until(()=>events.some(x=>x.type==='segment_error'));pipeline.retry('first');await until(()=>events.some(x=>x.final));assert.equal(pipeline.closed,false);pipeline.close();
 });
 test('Silence creates no recognition calls and a long utterance remains bounded',()=>{
@@ -49,7 +49,7 @@ test('Reconnect replays unacknowledged frames without duplicate segments',async(
   for(let i=0;i<30;i++)session.audio(voice);await until(()=>session.ack>=30);const key=session.resumeKey;
   const connection=[...app.wss.clients][0];connection.terminate();await until(()=>!session.ready);
   for(let i=0;i<30;i++)session.audio(i<17?voice:Buffer.alloc(2400));await until(()=>session.ready);await until(()=>session.ack>=60);
-  assert.equal(session.resumeKey,key);assert.equal(boots,1);assert.equal(app.sessions.get(key).lastSeq,60);assert.equal(recognized.filter(x=>x.final).length,1);assert.equal(fatal,undefined);assert.ok(statuses.some(x=>x.includes('恢复')));session.close();await app.close();
+  assert.equal(session.resumeKey,key);assert.equal(boots,1);assert.equal(app.sessions.get(key).lastSeq,60);assert.equal(recognized.filter(x=>x.final).length,1);assert.equal(fatal,undefined);assert.ok(statuses.some(x=>x.includes('\u6062\u590d')));session.close();await app.close();
 });
 test('Local endpoints reject cross-site access and unknown files',async()=>{
   const app=createApp({port:0,checkModel:false});const port=await app.listen();
@@ -59,19 +59,19 @@ test('Local endpoints reject cross-site access and unknown files',async()=>{
   assert.equal((await fetch(`http://127.0.0.1:${port}/api/overlay/open`,{method:'POST'})).status,403);await app.close();
 });
 test('Audio buffer exhaustion stops explicitly instead of silently dropping input',()=>{
-  let message='';const session=new LiveSession({token:'test',baseUrl:'ws://127.0.0.1:1',onEvent(){},onStatus(){},onFatal:value=>message=value});for(let i=0;i<601;i++)session.audio(new ArrayBuffer(2400));assert.equal(session.closed,true);assert.match(message,/30 秒/);
+  let message='';const session=new LiveSession({token:'test',baseUrl:'ws://127.0.0.1:1',onEvent(){},onStatus(){},onFatal:value=>message=value});for(let i=0;i<601;i++)session.audio(new ArrayBuffer(2400));assert.equal(session.closed,true);assert.match(message,/30 \u79d2/);
 });
 
 test('Native controls run a system session and captions survive an observer disconnect',async()=>{
   let capture,closed=false;const values=[];
-  const app=createApp({port:0,checkModel:false,idleMs:30,phraseTranslate:async job=>({consume:job.words.length,zh:'独立字幕仍在工作',firstMs:1}),captureFactory:emit=>{capture=emit;return{close(){closed=true;}};},asrFactory:emit=>{setTimeout(()=>emit({type:'ready'}),5);return{transcribe:job=>emit({type:'transcript',id:job.id,text:'a complete English sentence',revision:job.revision,final:job.final}),close(){}};}});
+  const app=createApp({port:0,checkModel:false,idleMs:30,phraseTranslate:async job=>({consume:job.words.length,zh:'\u72ec\u7acb\u5b57\u5e55\u4ecd\u5728\u5de5\u4f5c',firstMs:1}),captureFactory:emit=>{capture=emit;return{close(){closed=true;}};},asrFactory:emit=>{setTimeout(()=>emit({type:'ready'}),5);return{transcribe:job=>emit({type:'transcript',id:job.id,text:'a complete English sentence',revision:job.revision,final:job.final}),close(){}};}});
   const port=await app.listen(),native=new WebSocket(`ws://127.0.0.1:${port}/api/overlay?token=${app.token}`);
   native.on('message',raw=>values.push(JSON.parse(raw)));await new Promise(done=>native.on('open',done));native.send(JSON.stringify({type:'native-ready'}));native.send(JSON.stringify({type:'native-control',action:'start'}));await until(()=>app.sessions.size===1&&[...app.sessions.values()][0].ready);
   const key=[...app.sessions.keys()][0];const workbench=new WebSocket(`ws://127.0.0.1:${port}/api/live?token=${app.token}`);
   await new Promise(done=>workbench.on('open',done));workbench.send(JSON.stringify({type:'start',source:'system'}));await wait(20);workbench.close();await wait(80);assert.equal(app.sessions.size,1);
   const voice=Buffer.alloc(2400);for(let i=0;i<voice.length;i+=2)voice.writeInt16LE(5000,i);
   for(let i=0;i<30;i++)capture({type:'audio',pcm:voice.toString('base64')});for(let i=0;i<13;i++)capture({type:'audio',pcm:Buffer.alloc(2400).toString('base64')});
-  await until(()=>values.some(x=>x.type==='subtitle'&&x.zh==='独立字幕仍在工作'));assert.ok(app.sessions.has(key));native.close();await until(()=>app.sessions.size===0);assert.ok(closed);await app.close();
+  await until(()=>values.some(x=>x.type==='subtitle'&&x.zh==='\u72ec\u7acb\u5b57\u5e55\u4ecd\u5728\u5de5\u4f5c'));assert.ok(app.sessions.has(key));native.close();await until(()=>app.sessions.size===0);assert.ok(closed);await app.close();
 });
 
 test('Read-only native state observers see a running engine without retaining its ownership',async()=>{
@@ -102,7 +102,7 @@ test('Native stop drains and releases its old internal owner so manual start cap
 
 test('Automatic application switches cancel old pages and reject late speech from the previous source',async()=>{
   let captureEmit,asrEmit,resets=0;const jobs=[],packets=[];
-  const app=createApp({port:0,checkModel:false,phraseTranslate:async job=>({consume:job.words.length,zh:'只显示新视频的翻译。',firstMs:1}),asrFactory:emit=>{asrEmit=emit;queueMicrotask(()=>emit({type:'ready'}));return{transcribe:job=>jobs.push(job),reset(){resets++;},close(){}};},captureFactory:emit=>{captureEmit=emit;return{close(){}};}});
+  const app=createApp({port:0,checkModel:false,phraseTranslate:async job=>({consume:job.words.length,zh:'\u53ea\u663e\u793a\u65b0\u89c6\u9891\u7684\u7ffb\u8bd1。',firstMs:1}),asrFactory:emit=>{asrEmit=emit;queueMicrotask(()=>emit({type:'ready'}));return{transcribe:job=>jobs.push(job),reset(){resets++;},close(){}};},captureFactory:emit=>{captureEmit=emit;return{close(){}};}});
   const port=await app.listen(),overlay=new WebSocket(`ws://127.0.0.1:${port}/api/overlay?token=${app.token}`);
   overlay.on('message',raw=>packets.push(JSON.parse(raw)));
   try{
@@ -116,9 +116,9 @@ test('Automatic application switches cancel old pages and reject late speech fro
     assert.equal([...app.sessions.values()][0].pipeline.items.size,0);
     jobs.length=0;utterance();const fresh=jobs.find(job=>job.final);assert.ok(fresh);assert.notEqual(fresh.id,old.id);
     asrEmit({type:'transcript',id:fresh.id,text:'Only translate the new video.',revision:fresh.revision,final:true});
-    await until(()=>packets.some(packet=>packet.zh==='只显示新视频的翻译。'));
+    await until(()=>packets.some(packet=>packet.zh==='\u53ea\u663e\u793a\u65b0\u89c6\u9891\u7684\u7ffb\u8bd1。'));
     assert.equal(resets,2);const sources=packets.filter(packet=>packet.type==='audio-source');assert.deepEqual(sources.map(packet=>packet.name),['','PlayerA.exe','PlayerB.exe']);assert.deepEqual(sources.map(packet=>packet.active),[false,true,true]);
-    assert.ok(!packets.some(packet=>packet.zh==='此段待重试'));
+    assert.ok(!packets.some(packet=>packet.zh==='\u6b64\u6bb5\u5f85\u91cd\u8bd5'));
   }finally{overlay.terminate();await app.close();}
 });
 
@@ -145,7 +145,7 @@ test('Quiet consonants do not split a low-volume utterance into tiny fragments',
 
 test('Late recognition after recovery retains original audio order',async()=>{
   const events=[],contexts=[];
-  const pipeline=new CaptionPipeline({emit:x=>events.push(x),translate:async job=>{contexts.push(job.context);return{text:'字幕'};}});
+  const pipeline=new CaptionPipeline({emit:x=>events.push(x),translate:async job=>{contexts.push(job.context);return{text:'\u5b57\u5e55'};}});
   pipeline.transcript({id:'newer',text:'newer speech was recognized first',sourceSequence:9,final:true});
   pipeline.transcript({id:'older',text:'older speech recovered late',sourceSequence:8,final:true});
   await until(()=>events.filter(x=>x.type==='translation'&&x.final).length===2);
@@ -165,6 +165,6 @@ test('Exhausted system capture recovery releases the session and shows a stopped
   session.connect();await until(()=>session.ready);captureEmit({type:'capture_error'});
   await until(()=>app.sessions.size===0&&session.closed);
   assert.ok(asrClosed&&captureClosed);assert.ok(states.some(x=>x.type==='engine-state'&&x.running===false));
-  assert.ok(states.some(x=>x.type==='subtitle'&&x.state==='已停止 · 请重新接入'));
+  assert.ok(states.some(x=>x.type==='subtitle'&&x.state==='Stopped · Please re-connect'));
   native.close();await app.close();
 });

@@ -48,7 +48,7 @@ test('First streaming audio batch arrives at 300 ms then every 200 ms',()=>{
 
 test('Slow Chinese translation cannot delay English, roll it back or corrupt reconnect snapshots',async()=>{
   const packets=[];let finish;
-  const app=createApp({port:0,checkModel:false,captureFactory:()=>({close(){}}),asrFactory:()=>({close(){},transcribe(){}}),phraseTranslate:job=>new Promise(done=>{finish=()=>done({consume:job.words.length,zh:'上一段的中文定稿。',firstMs:1});})});
+  const app=createApp({port:0,checkModel:false,captureFactory:()=>({close(){}}),asrFactory:()=>({close(){},transcribe(){}}),phraseTranslate:job=>new Promise(done=>{finish=()=>done({consume:job.words.length,zh:'\u4e0a\u4e00\u6bb5\u7684\u4e2d\u6587\u5b9a\u7a3f。',firstMs:1});})});
   const port=await app.listen(),url=`ws://127.0.0.1:${port}/api/overlay?token=${app.token}`;
   const overlay=new WebSocket(url),live=new WebSocket(`ws://127.0.0.1:${port}/api/live?token=${app.token}`);let replay;
   overlay.on('message',raw=>packets.push(JSON.parse(raw)));
@@ -59,9 +59,9 @@ test('Slow Chinese translation cannot delay English, roll it back or corrupt rec
     pipeline.transcript({id:'first',sourceSequence:1,text:'Earlier finished source.',final:true});await until(()=>finish);
     pipeline.transcript({id:'next',sourceSequence:2,text:'Current English arrives now',final:false});
     await until(()=>packets.some(x=>x.type==='english' && x.en==='Current English arrives now'));
-    assert.ok(!packets.some(x=>x.zh==='上一段的中文定稿。'));
-    finish();await until(()=>packets.some(x=>x.zh==='上一段的中文定稿。'));
-    assert.equal(packets.find(x=>x.zh==='上一段的中文定稿。').en,'Current English arrives now');
+    assert.ok(!packets.some(x=>x.zh==='\u4e0a\u4e00\u6bb5\u7684\u4e2d\u6587\u5b9a\u7a3f。'));
+    finish();await until(()=>packets.some(x=>x.zh==='\u4e0a\u4e00\u6bb5\u7684\u4e2d\u6587\u5b9a\u7a3f。'));
+    assert.equal(packets.find(x=>x.zh==='\u4e0a\u4e00\u6bb5\u7684\u4e2d\u6587\u5b9a\u7a3f。').en,'Current English arrives now');
     overlay.send(JSON.stringify({type:'overlay-preference',fontSize:32}));
     await until(()=>packets.some(x=>x.type==='subtitle' && x.fontSize===32));
     assert.equal(packets.filter(x=>x.type==='subtitle').at(-1).en,'Current English arrives now');

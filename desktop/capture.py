@@ -13,7 +13,7 @@ def commands():
         if line.strip()=='stop':break
     stop.set()
 threading.Thread(target=commands,daemon=True).start()
-target_state=(args.pid,'QA 播放器',(args.pid,),0) if args.pid else (None,'',(),0)
+target_state=(args.pid,'QA Player',(args.pid,),0) if args.pid else (None,'',(),0)
 monitor=None
 def monitor_events():
     global target_state
@@ -29,7 +29,7 @@ if not args.pid:
     threading.Thread(target=monitor_events,daemon=True).start()
 captures={};buffers={};selected=None;signature=None;next_frame=time.monotonic();last_health=0
 try:
-    emit({'type':'capture_ready','device':'自动跟随前台应用','scope':'process','waiting':True})
+    emit({'type':'capture_ready','device':'Auto-follow foreground app','scope':'process','waiting':True})
     while not stop.is_set():
         now=time.monotonic()
         if now-last_health>=1:

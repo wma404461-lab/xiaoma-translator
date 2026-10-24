@@ -52,7 +52,7 @@ export class CaptionPipeline {
     if (this.queue.length > 24) {
       const skipped = this.queue.shift();
       skipped.translatedRevision = skipped.revision;
-      this.emit({ type: 'segment_error', id: skipped.id, startedClientAt:skipped.startedClientAt, message: '模型积压，此片段可手动重试；后续语音继续接收。' });
+      this.emit({ type: 'segment_error', id: skipped.id, startedClientAt:skipped.startedClientAt, message: 'Model backlog; retry this segment manually; continue receiving subsequent speech.' });
     }
     this.pump();
   }
@@ -63,7 +63,7 @@ export class CaptionPipeline {
       const job = { revision: item.revision, text: item.text, final: item.final, controller: new AbortController() };
       item.active = job;
       this.activeCount++;
-      const watchdog = setTimeout(() => job.controller.abort(new Error('翻译超时，请检查本机模型。')), 30000);
+      const watchdog = setTimeout(() => job.controller.abort(new Error('Translation timeout—check local model.')), 30000);
       const context = [...this.items.values()].filter(other => other.sequence < item.sequence && other.text && (other.final || other.text.trim().split(/\s+/).length>=3)).sort((a,b)=>a.sequence-b.sequence).slice(-6).map(other => ({ en: other.text, zh: other.zh }));
       const valid = () => !this.closed && item.active === job && !job.controller.signal.aborted;
       Promise.resolve().then(() => this.translate({ text: job.text, final: job.final, context, glossary: this.glossary, topic: this.topic,
@@ -78,7 +78,7 @@ export class CaptionPipeline {
         this.emit({ type: 'translation', id: item.id, text: result.text, final: job.final, complete:true, sourceText:job.text, sequence:item.sequence, revision: job.revision, firstMs: result.firstMs, durationMs: result.durationMs, startedClientAt: item.startedClientAt });
       }).catch(error => {
         if (!this.closed && item.active === job) {
-          this.emit({ type: 'segment_error', id: item.id, startedClientAt:item.startedClientAt, message: error.message || '该片段翻译失败。' });
+          this.emit({ type: 'segment_error', id: item.id, startedClientAt:item.startedClientAt, message: error.message || 'This segment failed to translate.' });
           item.translatedRevision = job.revision; // Do not create an infinite paid retry loop.
         }
       }).finally(() => {

@@ -34,7 +34,7 @@ def download(url, dest, expected=None, size=None):
                     while block := response.read(1024 * 1024):
                         output.write(block); offset += len(block)
                         if offset - reported > 100 * 1024 * 1024:
-                            print(f'FLOWSUB_DOWNLOAD|当前文件已下载 {offset // 1048576} MB', flush=True); reported = offset
+                            print(f'FLOWSUB_DOWNLOAD|Current file has been downloaded {offset // 1048576} MB', flush=True); reported = offset
             if expected and hashlib.file_digest(partial.open('rb'), 'sha256').hexdigest() != expected:
                 partial.unlink(); raise ValueError(f'Checksum mismatch: {dest.name}')
             partial.replace(dest); print(f'Ready: {dest.name}', flush=True); return str(dest)

@@ -24,7 +24,7 @@ const version = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')).
 try { process.loadEnvFile(resolve(root, '.env')); } catch (error) { if (error.code !== 'ENOENT') throw error; }
 export function createApp({ port = Number(process.env.PORT || 4317), translate = createLocalTranslator(), phraseTranslate = createSemanticTranslator(), asrFactory = createLocalAsr, captureFactory=createSystemCapture, checkModel = true, idleMs = 180000, updater=createReleaseUpdater({version}), onUpdateApply=()=>{}, onRefresh=async()=>{}, nativeRetryMs=1000, captionOptions={}, phraseOptions={} } = {}) {
   const token = randomBytes(24).toString('hex'), sessions = new Map(), overlayClients = new Set(), nativeClients=new Set();
-  let overlayProcess,nativeOwner,currentSession,lastSubtitleSequence=-1, lastAudioSource={type:'audio-source',name:'',scope:'process',active:false}, lastSubtitle = {type:'subtitle',zh:'等待英文语音…',en:'Waiting for English audio...',state:'等待语音',fontSize:28,bilingual:true};
+  let overlayProcess,nativeOwner,currentSession,lastSubtitleSequence=-1, lastAudioSource={type:'audio-source',name:'',scope:'process',active:false}, lastSubtitle = {type:'subtitle',zh:'Waiting for English speech…',en:'Waiting for English audio...',state:'Waiting for voice input',fontSize:28,bilingual:true};
   let nativeWanted=false,nativeRecoveryTimer,nativeRecoveries=0,refreshing=false;
   const activity={audioAt:null,recognitionAt:null,translationAt:null,errorAt:null};
   const overlayBroadcast = value => {for(const client of overlayClients)if(client.readyState===WebSocket.OPEN)client.send(JSON.stringify(value));};
@@ -61,7 +61,7 @@ export function createApp({ port = Number(process.env.PORT || 4317), translate =
     if (url.pathname === '/api/config') {
       let translationReady = !checkModel;
       if (checkModel) try { translationReady = (await fetch('http://127.0.0.1:4318/health', {signal: AbortSignal.timeout(2000)})).ok; } catch {}
-      res.setHeader('Content-Type','application/json'); res.end(JSON.stringify({ token, version, configured: existsSync(pythonPath) && translationReady, translationReady, transcriptionModel:'Zipformer 流式 + Whisper 定稿 · 本机', translationModel:'Qwen3 4B · 本机', bufferSeconds:30,activity:{...activity,running:nativeWanted,refreshing}})); return;
+      res.setHeader('Content-Type','application/json'); res.end(JSON.stringify({ token, version, configured: existsSync(pythonPath) && translationReady, translationReady, transcriptionModel:'Zipformer Streaming + Whisper Final draft · Local', translationModel:'Qwen3 4B · Local', bufferSeconds:30,activity:{...activity,running:nativeWanted,refreshing}})); return;
     }
     res.writeHead(404);res.end('Not found');
   });
@@ -101,9 +101,9 @@ export function createApp({ port = Number(process.env.PORT || 4317), translate =
       const event=JSON.parse(raw);
       if(event.type==='error'&&nativeWanted&&nativeClients.size){
         if(++nativeRecoveries<=3){
-          lastSubtitle={...lastSubtitle,zh:'正在恢复识别和翻译…',en:'Reconnecting…',state:'自动恢复中'};overlayBroadcast(lastSubtitle);
+          lastSubtitle={...lastSubtitle,zh:'Restoring recognition and translation…',en:'Reconnecting…',state:'Auto-recovering'};overlayBroadcast(lastSubtitle);
           clearTimeout(nativeRecoveryTimer);nativeRecoveryTimer=setTimeout(()=>void refreshNative(),nativeRetryMs*nativeRecoveries);nativeRecoveryTimer.unref?.();
-        }else{nativeWanted=false;lastSubtitle={...lastSubtitle,zh:'暂时未能恢复，请点刷新。',en:'',state:'等待刷新'};overlayBroadcast(lastSubtitle);}
+        }else{nativeWanted=false;lastSubtitle={...lastSubtitle,zh:'Failed to recover temporarily; please click refresh.',en:'',state:'Waiting for refresh'};overlayBroadcast(lastSubtitle);}
       }
     }catch{}});
   };
@@ -113,9 +113,9 @@ export function createApp({ port = Number(process.env.PORT || 4317), translate =
     const owner=nativeOwner;nativeOwner=null;owner?.terminate();
     for(const session of [...sessions.values()])if(session.source==='system'){session.stopped=true;dispose(session);}
     captionDisplay.reset();englishDisplay.reset();
-    lastSubtitle={...lastSubtitle,zh:'正在重新连接翻译…',en:'Reconnecting…',state:'刷新中',page:1,pageCount:1};overlayBroadcast(lastSubtitle);overlayBroadcast({type:'engine-state',running:false});
+    lastSubtitle={...lastSubtitle,zh:'Reconnecting translation…',en:'Reconnecting…',state:'Refreshing',page:1,pageCount:1};overlayBroadcast(lastSubtitle);overlayBroadcast({type:'engine-state',running:false});
     try{await onRefresh();if(nativeWanted&&nativeClients.size)startNative();}
-    catch{nativeWanted=false;lastSubtitle={...lastSubtitle,zh:'刷新未完成，请稍后再点刷新。',en:'',state:'等待刷新'};overlayBroadcast(lastSubtitle);}
+    catch{nativeWanted=false;lastSubtitle={...lastSubtitle,zh:'Refresh not complete; please try again later.',en:'',state:'Waiting for refresh'};overlayBroadcast(lastSubtitle);}
     finally{refreshing=false;}
   };
   wss.on('connection', browser => {
@@ -131,14 +131,14 @@ export function createApp({ port = Number(process.env.PORT || 4317), translate =
         if(!value.resumeKey && value.source==='system')value.resumeKey=[...sessions.values()].find(s=>s.source==='system'&&!s.stopped)?.key;
         if (value.resumeKey) {
           session = sessions.get(value.resumeKey);
-          if (!session || session.stopped) { sendDirect({type:'expired',message:'会话已结束，请重新接入。'}); browser.close(); return; }
+          if (!session || session.stopped) { sendDirect({type:'expired',message:'Session has ended; please reconnect.'}); browser.close(); return; }
           clearTimeout(session.expiry);
           session.browser?.close(1000,'Session resumed'); session.browser = browser;
           sendDirect({type:'session',resumeKey:session.key,lastSeq:session.lastSeq,ready:session.ready,history:[...session.history.values()]}); return;
         }
-        if (sessions.size >= 2) { sendDirect({type:'error',message:'已有字幕会话占用模型，请先停止旧会话。'}); browser.close(); return; }
+        if (sessions.size >= 2) { sendDirect({type:'error',message:'A subtitle session is already using the model; please end the previous session first.'}); browser.close(); return; }
         session = {key:randomBytes(24).toString('hex'),source:value.source,browser,lastSeq:0,ready:false,history:new Map(),starts:new Map(),sourceRevisions:new Map(),stopped:false,createdAt:Date.now()}; sessions.set(session.key,session);currentSession=session.key;lastSubtitleSequence=-1;captionDisplay.reset();englishDisplay.reset();
-        lastSubtitle={...lastSubtitle,zh:'等待英文语音…',en:'Waiting for English audio...',state:'等待语音'};overlayBroadcast(lastSubtitle);
+        lastSubtitle={...lastSubtitle,zh:'Waiting for English speech…',en:'Waiting for English audio...',state:'Waiting for voice input'};overlayBroadcast(lastSubtitle);
         if(session.source==='system')overlayBroadcast({type:'engine-state',running:true});
         const emit = event => {
           if(session.failed)return;
@@ -146,7 +146,7 @@ export function createApp({ port = Number(process.env.PORT || 4317), translate =
           if(event.type==='translation'&&event.complete)activity.translationAt=Date.now();
           if(['error','segment_error','segment_warning'].includes(event.type))activity.errorAt=Date.now();
           if(currentSession===session.key&&(event.type==='recovering'||event.type==='segment_warning')){
-            lastSubtitle={...lastSubtitle,state:event.type==='recovering'?'识别恢复中':event.retrying===true?'翻译自动重试中':'继续接收语音 · 可刷新'};overlayBroadcast(lastSubtitle);
+            lastSubtitle={...lastSubtitle,state:event.type==='recovering'?'Restoring recognition':event.retrying===true?'Translation auto-retry in progress':'Continue receiving voice · Refresh available'};overlayBroadcast(lastSubtitle);
           }
           if (['transcript','translation','segment_error'].includes(event.type)) {
             const old = session.history.get(event.id) || {id:event.id};
@@ -157,12 +157,12 @@ export function createApp({ port = Number(process.env.PORT || 4317), translate =
             if (event.type === 'translation' && event.complete) Object.assign(old,{zh:event.text,final:event.final,firstMs:event.firstMs,durationMs:event.durationMs,error:'',captionEn:event.sourceText,revision:event.revision,sequence:event.sequence,startedClientAt:event.startedClientAt,translationReadyAt:Date.now()});
             if (event.type === 'segment_error') {old.error = event.message;if(Number.isFinite(event.startedClientAt))old.startedClientAt=event.startedClientAt;}
             session.history.set(event.id,old); if (session.history.size > 160) session.history.delete(session.history.keys().next().value);
-            if(currentSession===session.key && (event.type==='segment_error' || (event.type==='translation' && event.complete)) && (old.zh || old.error))captionDisplay.offer({id:old.id,sourceId:event.sourceId,sequence:old.sequence??0,revision:old.revision??0,zh:old.error?'此段待重试':old.zh,en:'',state:old.error?'此段待重试':'已定稿',final:Boolean(old.error||old.final),translationReadyAt:old.translationReadyAt});
+            if(currentSession===session.key && (event.type==='segment_error' || (event.type==='translation' && event.complete)) && (old.zh || old.error))captionDisplay.offer({id:old.id,sourceId:event.sourceId,sequence:old.sequence??0,revision:old.revision??0,zh:old.error?'This segment requires retry':old.zh,en:'',state:old.error?'This segment requires retry':'Finalized',final:Boolean(old.error||old.final),translationReadyAt:old.translationReadyAt});
           }
           if (session.browser?.readyState === WebSocket.OPEN) session.browser.send(JSON.stringify(event));
           if(event.type==='error'){
             session.failed=true;session.stopped=true;
-            if(currentSession===session.key){captionDisplay.reset();englishDisplay.reset();lastSubtitle={...lastSubtitle,zh:event.message,en:'',state:'已停止 · 请重新接入'};overlayBroadcast(lastSubtitle);overlayBroadcast({type:'engine-state',running:false});}
+            if(currentSession===session.key){captionDisplay.reset();englishDisplay.reset();lastSubtitle={...lastSubtitle,zh:event.message,en:'',state:'Stopped · Please re-connect'};overlayBroadcast(lastSubtitle);overlayBroadcast({type:'engine-state',running:false});}
             queueMicrotask(()=>{dispose(session);session.browser?.close();});
           }
         };
@@ -183,7 +183,7 @@ export function createApp({ port = Number(process.env.PORT || 4317), translate =
             if(!session.starts.has(event.id) || event.revision<(session.sourceRevisions.get(event.id)||0))return;
             session.pipeline.reviewStarted?.(event.id);emit(event);
           } else if (event.type === 'fatal') emit({type:'error',message:event.message});
-          else if (event.type === 'asr_error') {if(!session.starts.has(event.id))return;const startedClientAt=session.starts.get(event.id);session.starts.delete(event.id);session.sourceRevisions.delete(event.id);session.pipeline.fail?.(event.id);emit({type:'segment_error',id:event.id,startedClientAt,message:'该片段识别失败。后续语音继续接收。'});}
+          else if (event.type === 'asr_error') {if(!session.starts.has(event.id))return;const startedClientAt=session.starts.get(event.id);session.starts.delete(event.id);session.sourceRevisions.delete(event.id);session.pipeline.fail?.(event.id);emit({type:'segment_error',id:event.id,startedClientAt,message:'This fragment failed recognition. Continue receiving subsequent voice.'});}
           else emit(event);
         });
         const newSegmenter=()=>new Segmenter({onSegment:segment=>{segment.id=`${session.sourceEpoch}:${segment.id}`;session.starts.set(segment.id,segment.startedClientAt);session.asr.transcribe(segment,session.pipeline.glossary.map(pair=>pair.en).join(', '));},onActivity:emit});
@@ -193,12 +193,12 @@ export function createApp({ port = Number(process.env.PORT || 4317), translate =
           if(event.type==='audio'){activity.audioAt=Date.now();session.vad.push(Buffer.from(event.pcm,'base64'),activity.audioAt);}
           else if(event.type==='capture_target'){
             session.sourceEpoch++;session.asr.reset?.();session.pipeline.close();session.pipeline=newPipeline();session.starts.clear();session.sourceRevisions.clear();session.vad=newSegmenter();
-            if(currentSession===session.key){captionDisplay.reset();englishDisplay.reset();lastSubtitle={...lastSubtitle,zh:event.pid?'等待中文定稿…':'播放英文视频即可',en:event.pid?'Waiting for English audio...':'Start an English video to translate.',state:event.pid?'英文实时 · 中文定稿':'等待前台视频',page:1,pageCount:1};lastAudioSource={type:'audio-source',name:event.device||'',scope:'process',active:Boolean(event.pid)};overlayBroadcast(lastAudioSource);overlayBroadcast(lastSubtitle);}
+            if(currentSession===session.key){captionDisplay.reset();englishDisplay.reset();lastSubtitle={...lastSubtitle,zh:event.pid?'Waiting for Chinese finalization…':'Play the English video to start',en:event.pid?'Waiting for English audio...':'Start an English video to translate.',state:event.pid?'English real-time · Chinese finalization':'Waiting for foreground video',page:1,pageCount:1};lastAudioSource={type:'audio-source',name:event.device||'',scope:'process',active:Boolean(event.pid)};overlayBroadcast(lastAudioSource);overlayBroadcast(lastSubtitle);}
             emit(event);
           }
           else if(event.type==='capture_ready')emit({type:'capture_ready',device:event.device,recovered:event.recovered});
-          else if(event.type==='capture_recovering'){emit({type:'recovering',scope:'audio',message:event.message});if(currentSession===session.key){lastSubtitle={...lastSubtitle,state:'系统音频恢复中'};overlayBroadcast(lastSubtitle);}}
-          else if(event.type==='capture_error')emit({type:'error',message:'应用音频多次接入失败，已停止。请重新开始翻译。'});
+          else if(event.type==='capture_recovering'){emit({type:'recovering',scope:'audio',message:event.message});if(currentSession===session.key){lastSubtitle={...lastSubtitle,state:'System audio recovery in progress'};overlayBroadcast(lastSubtitle);}}
+          else if(event.type==='capture_error')emit({type:'error',message:'Application audio connection failed multiple times. Translation stopped. Please restart translation.'});
         });
         sendDirect({type:'session',resumeKey:session.key,lastSeq:0,ready:session.ready,history:[]});
       } else if (value.type === 'audio' && session && !session.stopped) {
@@ -224,7 +224,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const runtime=await startLocalRuntime();
   const grammar=createGrammarGate();
   let app;const shutdown=async()=>{await app.close();grammar.close();runtime.close();process.exit(0);};
-  app = createApp({phraseTranslate:createSemanticTranslator({grammarCheck:grammar.check,observeInference:runtime.observeInference}),captionOptions:{minHoldMs:1800,maxHoldMs:3600},onUpdateApply:shutdown,onRefresh:async()=>runtime.refresh?.()}); console.log(`小马翻译：桌面服务已启动（127.0.0.1:${await app.listen()}）`);
+  app = createApp({phraseTranslate:createSemanticTranslator({grammarCheck:grammar.check,observeInference:runtime.observeInference}),captionOptions:{minHoldMs:1800,maxHoldMs:3600},onUpdateApply:shutdown,onRefresh:async()=>runtime.refresh?.()}); console.log(`Xiaoma Translation: Desktop service has started (127.0.0.1:${await app.listen()})`);
   if(process.argv.includes('--desktop'))await fetch(`http://127.0.0.1:${app.server.address().port}/api/overlay/open`,{method:'POST',headers:{'X-FlowSub-Token':app.token}});
   process.on('SIGINT',shutdown);process.on('SIGTERM',shutdown);
 }

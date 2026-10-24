@@ -1,15 +1,17 @@
-# 小马翻译 · FlowSub 随译
+# Xiaoma Translator - FlowSub
 
-Windows 英文音频实时中文字幕工具。保留项目现有 GPL-3.0 许可，应用包清单版本 0.2.0。识别、翻译模型及第三方库不是本项目原创，详见 THIRD_PARTY_NOTICES.md 和 licenses/。
+A Windows tool for live English-audio transcription and Chinese subtitles, with an English application interface. Package version: 0.2.0. The subtitle target remains Chinese; interface localization does not silently change the translation model's purpose.
 
-## 从源码启动
+## Run from source
 
-需要 Windows 10/11、Node.js 22+、Python 3.12。安装 JavaScript 依赖后运行 `setup-local.ps1` 准备 Python 环境和本地模型，随后使用 `Start-FlowSub.cmd`。模型下载需要数 GB 存储空间；本仓库不附模型权重或 Python 环境。首次准备会下载官方依赖并建立用户缓存，请先阅读脚本。
+Requires Windows 10/11, Node.js 22+ and Python 3.12. Install JavaScript dependencies, run `setup-local.ps1` to prepare Python and local models, then use `Start-FlowSub.cmd`. Model downloads need several GB of storage. Read the setup scripts before running them; weights and Python environments are not included.
 
-`npm test` 执行 Node 回归测试，`npm run check` 检查服务器模块语法。字幕窗、GPU 模型、系统音频采集需要实际 Windows 环境，源码测试通过不等于所有设备上的延迟、准确率或实时性能通过。
+`npm test` runs the Node regression suite. `npm run check` checks server module syntax. The source edition passed 114 Node regressions before interface localization. GPU performance, models, system-audio capture and the desktop subtitle window require separate device-level verification.
 
-选择前台有音频的应用后，通过 WASAPI 进程音频采集转写与翻译；同一浏览器的多个标签可能共享进程，不能据此声称逐标签隔离。修改版请核实并配置自己的更新服务，仓库仅保留公开更新验签公钥，不包含签名私钥、历史音频、私密字幕或测试视频。
+WASAPI process-loopback capture follows the selected audio-producing application. Browser tabs may share a process; this is not per-tab isolation. Configure your own update service before distributing a fork. Only the public verification key is included, with no signing keys, private audio, subtitle history or test videos.
 
-Noto Sans SC 字体按 SIL OFL 随 assets/fonts/OFL.txt 提供。已排除服务器部署脚本、运行日志、第三方研究克隆、模型权重和旧备份文件。测试中使用的 example 域名与模拟令牌仅为合成测试数据。
+## Licensing and scope
 
-本次源码副本的 114 项 Node 回归测试全部通过。离线训练实验及其三份测试未纳入公开范围；没有运行大模型下载、GPU 性能或整套字幕桌面测试。可选模型镜像未附本机证书，准备脚本会走官方上游来源。
+Application source retains GPL-3.0. Speech/translation models and dependencies are not original work of this project; see `THIRD_PARTY_NOTICES.md` and `licenses/`. Noto Sans SC is included under SIL OFL in `assets/fonts/OFL.txt` for the subtitle content.
+
+Deployment scripts, logs, upstream research clones, model weights, historical backups and private training experiments are excluded. Synthetic test tokens and example domains are fixtures. The optional model mirror certificate is not included, so preparation falls back to official upstream sources. Interface language is English; imported/user-generated subtitle text retains its original language.

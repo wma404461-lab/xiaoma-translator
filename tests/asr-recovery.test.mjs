@@ -24,7 +24,7 @@ test('A live but stalled recognition worker is replaced and pending original req
     asr.transcribe(segment('first'));asr.transcribe(segment('second'));
     await until(()=>events.filter(e=>e.type==='transcript').length===2);
     assert.equal(children.length,2);
-    assert.match(events.find(e=>e.type==='recovering').message,/响应超时/);
+    assert.match(events.find(e=>e.type==='recovering').message,/recognition timeout/);
     assert.deepEqual(events.filter(e=>e.type==='transcript').map(e=>e.id),['first','second']);
     assert.ok(!events.some(e=>e.type==='fatal'));
     await until(()=>children[0].exitCode!==null);

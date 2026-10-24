@@ -13,5 +13,5 @@ __pycache__/
 *.key
 *.pfx
 *.p12
-成品/
-发布/
+dist/
+releases/

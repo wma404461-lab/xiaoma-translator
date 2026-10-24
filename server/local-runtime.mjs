@@ -13,7 +13,7 @@ export async function startLocalRuntime(){
   const directory=resolve(cacheRoot,'llama-b11382'),model=process.env.FLOWSUB_TRANSLATION_MODEL||resolve(cacheRoot,'Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf');
   const candidates=existsSync(directory)?await readdir(directory,{recursive:true}):[];
   const executable=candidates.find(name=>name.endsWith('llama-server.exe'));
-  if(!executable || !existsSync(model))throw new Error('请先运行 setup-local.ps1，完成本地模型安装。');
+  if(!executable || !existsSync(model))throw new Error('Please run first setup-local.ps1, Local model installation completed.');
   const children=new Set();
   const log=createWriteStream(resolve(cacheRoot,'translation-runtime.log'),{flags:'a'});
   const managed=createModelSupervisor({health,spawnWorker:()=>{
@@ -25,13 +25,13 @@ export async function startLocalRuntime(){
     child.stdout.pipe(log,{end:false});child.stderr.pipe(log,{end:false});
     return child;
   },onEvent:event=>{
-    if(event.type==='recovering')console.log('翻译引擎中断或无响应，正在自动恢复。');
-    if(event.type==='fatal')console.error('翻译引擎连续失败，请重新运行 start.ps1。');
+    if(event.type==='recovering')console.log('Translation engine interrupted or unresponsive. Auto-recovery in progress.');
+    if(event.type==='fatal')console.error('Translation engine failed consecutively. Please restart start.ps1.');
   }});
   const close=()=>{for(const child of children){child.stdout.unpipe(log);child.stderr.unpipe(log);}managed.close();log.end();};
   let deadline;
   try{
-    await Promise.race([managed.ready,new Promise((_,reject)=>{deadline=setTimeout(()=>reject(new Error('翻译模型加载超时，请查看本机缓存中的 translation-runtime.log。')),90000);})]);
+    await Promise.race([managed.ready,new Promise((_,reject)=>{deadline=setTimeout(()=>reject(new Error('Translation model load timeout. Please check the local cache translation-runtime.log.')),90000);})]);
     return {close,refresh:async()=>{if(managed.isReady()&&await health())return;await managed.restart();},observeInference:({endpoint,signal})=>endpoint==='http://127.0.0.1:4318/v1/chat/completions'?managed.observeInference({signal}):undefined};
   }catch(error){close();throw error;}
   finally{clearTimeout(deadline);}

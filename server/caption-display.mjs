@@ -4,7 +4,7 @@ function splitText(text, limit) {
   while(pieces.length>limit){
     let end=limit;
     for(let index=limit-1;index>=Math.floor(limit*.55);index--){
-      if(/[\s，,；;。！？!?、]/u.test(pieces[index])){end=index+1;break;}
+      if(/[\s, ,; ;.!?!?, ]/u.test(pieces[index])){end=index+1;break;}
     }
     parts.push(pieces.splice(0,end).join('').trim());
   }

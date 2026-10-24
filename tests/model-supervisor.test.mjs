@@ -35,7 +35,7 @@ test('An owned live model with unresponsive health is replaced and becomes ready
 test('Model loading has startup grace and a bounded failure count',async()=>{
   const {supervisor,children,events}=fixture({startupMs:100,health:async()=>false});
   try{
-    await assert.rejects(supervisor.ready,/无法恢复/);await delay(200);
+    await assert.rejects(supervisor.ready,/failed to recover/);await delay(200);
     assert.equal(children.length,4);assert.equal(events.filter(e=>e.type==='recovering').length,3);
     assert.equal(events.filter(e=>e.type==='fatal').length,1);
   }finally{supervisor.close();}

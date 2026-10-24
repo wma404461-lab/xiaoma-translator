@@ -1,6 +1,6 @@
 // Streaming-safe SSE parsing: chunks may split UTF-8 characters or event delimiters.
 export async function* parseSse(body) {
-  if (!body) throw new Error('上游没有返回流式响应。');
+  if (!body) throw new Error('Upstream did not return stream response.');
   const decoder = new TextDecoder();
   let buffer = '';
   for await (const chunk of body) {

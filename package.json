@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "FlowSub 随译 — 英文直播的实时中文语义字幕",
+  "description": "FlowSub — Real-time Chinese subtitles for English speech",
   "engines": {
     "node": ">=22"
   },

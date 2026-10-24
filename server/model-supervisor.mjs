@@ -5,7 +5,7 @@ import {stopChild} from './process.mjs';
 export function createModelSupervisor({spawnWorker,health,onEvent=()=>{},unhealthyMs=5000,startupMs=90000,inferenceSilenceMs=10000,pollMs=1000,retryMs=1000,maxRestarts=3,now=Date.now}){
   let worker,closed=false,restarts=0,bootAt=0,lastHealthy=0,healthyAt=0,loaded=false,checking=false,retryTimer,resolveReady,rejectReady;
   let ready=new Promise((resolve,reject)=>{resolveReady=resolve;rejectReady=reject;});ready.catch(()=>{});
-  const unavailable=()=>new Error('本地翻译模型无法恢复，请重新启动。');
+  const unavailable=()=>new Error('Local translation model failed to recover; restart required.');
   const boot=()=>{
     if(closed)return;
     bootAt=lastHealthy=now();healthyAt=0;loaded=false;

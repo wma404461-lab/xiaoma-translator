@@ -58,7 +58,7 @@ export class PhrasePipeline {
       }
       if (item.consumed.length && !prefixMatches(item.consumed, item.words)) {
         item.invalid = true;
-        this.emit({type: 'segment_warning', id, message: '识别修改了已显示的原文；保留字幕，此段剩余内容暂缓。'});
+        this.emit({type: 'segment_warning', id, message: 'Speech recognition modified previously displayed text; keep subtitles, pause remaining content.'});
       }
     }
     this.pump(); this.prune();
@@ -113,12 +113,12 @@ export class PhrasePipeline {
     const job = {item, words, offset: item.consumed.length, final: item.ended && item.endReason !== 'limit', controller: new AbortController()};
     this.active = job;
     const watchdog = setTimeout(() => {
-      const error=new Error('本地分句翻译超时。');error.code='FLOWSUB_TRANSLATION_TIMEOUT';job.controller.abort(error);
+      const error=new Error('Local sentence translation timed out.');error.code='FLOWSUB_TRANSLATION_TIMEOUT';job.controller.abort(error);
     }, 12000);
     const valid = () => !this.closed && this.active === job && !job.controller.signal.aborted && !item.invalid && !item.moved;
     Promise.resolve().then(() => this.translate({words, lookahead: item.words.slice(job.offset + words.length).join(' '), previous: this.context.slice(-3), final: job.final, signal: job.controller.signal})).then(result => {
       if (!valid() || !result.consume) return;
-      if (!Number.isSafeInteger(result.consume) || result.consume < 1 || result.consume > words.length || !String(result.zh || '').trim()) throw new Error('本地分句翻译无效。');
+      if (!Number.isSafeInteger(result.consume) || result.consume < 1 || result.consume > words.length || !String(result.zh || '').trim()) throw new Error('Local sentence translation invalid.');
       const selected = words.slice(0, result.consume);
       if (item.consumed.length !== job.offset || !prefixMatches([...item.consumed, ...selected], item.words)) return; // Recognition changed while the request was in flight.
       if(!job.final&&this.continuationCheck(selected.join(' '),item.words.slice(job.offset+selected.length).join(' ')))return;
@@ -133,7 +133,7 @@ export class PhrasePipeline {
         item.failedKey=item.attemptKey;item.failures=(item.failures||0)+1;
         const retrying=item.failures<=this.maxRetries;
         if(retrying){item.attemptKey='';item.retryAt=this.now()+this.retryMs*item.failures;}
-        this.emit({type:'segment_warning',id:item.id,retrying,message:retrying?'翻译暂时失败，正在自动重试。':'此句未能翻译，继续接收后续语音；可点刷新重新连接。'});
+        this.emit({type:'segment_warning',id:item.id,retrying,message:retrying?'Translation temporarily failed, automatically retrying.':'This sentence failed to translate; continue receiving subsequent speech; refresh to reconnect.'});
       }
     }).finally(() => {
       clearTimeout(watchdog);
@@ -155,7 +155,7 @@ export class PhrasePipeline {
       if (excess <= 0) break;
       if (this.active?.item === item) continue;
       item.invalid = true; excess--;
-      this.emit({type: 'segment_warning', id: item.id, message: '本地模型积压，跳过较早片段，继续接收当前语音。'});
+      this.emit({type: 'segment_warning', id: item.id, message: 'Local model backlog; skip earlier segments, continue with current speech.'});
     }
     if (this.items.size <= 160) return;
     for (const [id, item] of this.items) {

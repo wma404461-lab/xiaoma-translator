@@ -11,7 +11,7 @@ export function createSystemCapture(onEvent,{spawnWorker=spawn,python=pythonPath
     const failure=()=>{
       if(closed||failed||child!==current)return;failed=true;child=null;stopChild(current);
       if(now()-lastBoot>60000)restarts=0;
-      if(++restarts<=3){onEvent({type:'capture_recovering',message:'系统音频接入中断，正在恢复。中断期间的声音可能漏句。'});timer=setTimeout(boot,restarts*retryMs);timer.unref();}
+      if(++restarts<=3){onEvent({type:'capture_recovering',message:'System audio connection interrupted, recovering. Audio from the interruption may be missed..'});timer=setTimeout(boot,restarts*retryMs);timer.unref();}
       else onEvent({type:'capture_error'});
     };
     // Capture only mixes short buffers. BLAS thread pools reserve large unused

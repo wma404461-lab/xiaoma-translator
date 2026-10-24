@@ -12,12 +12,12 @@ test('A heard wake-up particle arriving during inference vetoes stale Chinese an
   const p=new PhrasePipeline({stableMs:0,tailWords:0,continuationCheck:needsParticleContinuation,emit:event=>events.push(event),translate:job=>{
     if(!answer)return new Promise(done=>answer=done);
     if(!job.final)return{consume:0};
-    return{consume:job.words.length,zh:'如果你早起。'};
+    return{consume:job.words.length,zh:'\u5982\u679c\u4f60\u65e9\u8d77。'};
   }});
   try{
     p.transcript({id:'late-particle',text:'If you wake'});await until(()=>answer);
     p.transcript({id:'late-particle',text:'If you wake up early'});
-    answer({consume:3,zh:'如果你醒来的话'});await delay(20);
+    answer({consume:3,zh:'\u5982\u679c\u4f60\u9192\u6765\u7684\u8bdd'});await delay(20);
     assert.ok(!events.some(event=>event.type==='translation'));
     p.transcript({id:'late-particle',text:'If you wake up early',final:true});
     await until(()=>events.some(event=>event.type==='translation'));
@@ -31,15 +31,15 @@ test('A qualification arriving during inference vetoes the stale unqualified Chi
   try{
     p.transcript({id:'late',text:'We can begin'});await until(()=>answer);
     p.transcript({id:'late',text:'We can begin if everyone is ready'});
-    answer({consume:3,zh:'我们可以开始。'});await delay(20);
-    assert.ok(!events.some(event=>event.type==='translation'&&event.text==='我们可以开始。'));
+    answer({consume:3,zh:'\u6211\u4eec\u53ef\u4ee5\u5f00\u59cb。'});await delay(20);
+    assert.ok(!events.some(event=>event.type==='translation'&&event.text==='\u6211\u4eec\u53ef\u4ee5\u5f00\u59cb。'));
   }finally{p.close();}
 });
 
 test('A failed final phrase retries automatically without new recognition and commits once',async()=>{
   let calls=0;const events=[];
   const p=new PhrasePipeline({retryMs:10,emit:event=>events.push(event),translate:async job=>{
-    if(++calls===1)throw new Error('Transient inference failure');return{consume:job.words.length,zh:'字幕恢复了。'};
+    if(++calls===1)throw new Error('Transient inference failure');return{consume:job.words.length,zh:'\u5b57\u5e55\u6062\u590d\u4e86。'};
   }});
   try{
     p.transcript({id:'failed',text:'These captions can resume.',final:true});
@@ -52,7 +52,7 @@ test('Permanent phrase failures retry only twice and later speech keeps translat
   let failures=0;const events=[];
   const p=new PhrasePipeline({retryMs:10,emit:event=>events.push(event),translate:async job=>{
     if(job.words[0]==='Fail'){failures++;throw new Error('Persistent failure');}
-    return{consume:job.words.length,zh:'后续字幕正常。'};
+    return{consume:job.words.length,zh:'\u540e\u7eed\u5b57\u5e55\u6b63\u5e38。'};
   }});
   try{
     p.transcript({id:'failed',text:'Fail this source.',final:true});await until(()=>events.some(event=>event.retrying===false));
@@ -106,14 +106,14 @@ test('Missing queued or processing review notifications both have bounded fallba
 
 test('A semantic decision cannot translate tentative lookahead or change source words',async()=>{
   const requests=[];
-  const translate=createSemanticTranslator({fetchImpl:async(_,options)=>{const r=JSON.parse(options.body);requests.push(r);return done(requests.length===1?'{"source":"We choose to go to the moon"}':'我们选择登月。');}});
+  const translate=createSemanticTranslator({fetchImpl:async(_,options)=>{const r=JSON.parse(options.body);requests.push(r);return done(requests.length===1?'{"source":"We choose to go to the moon"}':'\u6211\u4eec\u9009\u62e9\u767b\u6708。');}});
   const result=await translate({words:'We choose to go to the moon in this decade'.split(' '),lookahead:'Secret unconfirmed words',signal:new AbortController().signal});
-  assert.equal(result.consume,7);assert.equal(result.zh,'我们选择登月。');
+  assert.equal(result.consume,7);assert.equal(result.zh,'\u6211\u4eec\u9009\u62e9\u767b\u6708。');
   assert.deepEqual(requests.map(r=>r.id_slot),[0,1]);assert.ok(requests.every(r=>r.cache_prompt===true));
   assert.ok(requests.every(r=>!JSON.stringify(r).includes('Secret')));
   const speech=JSON.parse(requests[1].messages[1].content.replace(/\n\/no_think$/,''));assert.equal(speech.speech,'We choose to go to the moon');
   const invalid=createSemanticTranslator({fetchImpl:async()=>done('{"source":"We choose to win the moon"}')});
-  await assert.rejects(invalid({words:'We choose to go to the moon'.split(' '),signal:new AbortController().signal}),/改写/);
+  await assert.rejects(invalid({words:'We choose to go to the moon'.split(' '),signal:new AbortController().signal}),/rewrote/);
 });
 
 test('Incomplete endings wait without requesting a translation',async()=>{
@@ -170,9 +170,9 @@ test('Recognition rollback during a request discards stale Chinese; committed pa
   const events=[];let resolve;const p=new PhrasePipeline({stableMs:0,tailWords:0,emit:x=>events.push(x),translate:()=>new Promise(done=>{resolve=done;})});
   p.transcript({id:'a',text:'The number is fifty percent'});await until(()=>resolve);
   p.transcript({id:'a',text:'The number is fifteen percent'});
-  const stale=resolve;resolve=null;stale({consume:5,zh:'百分之五十'});await until(()=>resolve);
-  resolve({consume:5,zh:'百分之十五'});await until(()=>events.some(x=>x.type==='translation'));
-  assert.ok(!events.some(x=>x.text==='百分之五十'));
+  const stale=resolve;resolve=null;stale({consume:5,zh:'\u767e\u5206\u4e4b\u4e94\u5341'});await until(()=>resolve);
+  resolve({consume:5,zh:'\u767e\u5206\u4e4b\u5341\u4e94'});await until(()=>events.some(x=>x.type==='translation'));
+  assert.ok(!events.some(x=>x.text==='\u767e\u5206\u4e4b\u4e94\u5341'));
   p.transcript({id:'a',text:'The number is sixteen percent',sourceEnded:true});await delay(10);
   assert.equal(events.filter(x=>x.type==='translation').length,1);assert.ok(events.some(x=>x.type==='segment_warning'));p.close();
 });
@@ -180,12 +180,12 @@ test('Recognition rollback during a request discards stale Chinese; committed pa
 test('Closing for an application switch cancels a delayed local answer',async()=>{
   const events=[];let resolve,signal;const p=new PhrasePipeline({emit:x=>events.push(x),translate:job=>{signal=job.signal;return new Promise(done=>resolve=done);}});
   p.transcript({id:'old',text:'Only translate the old application',sourceEnded:true});await until(()=>resolve);p.close();
-  assert.equal(signal.aborted,true);resolve({consume:5,zh:'旧应用'});await delay(10);assert.ok(!events.some(x=>x.type==='translation'));
+  assert.equal(signal.aborted,true);resolve({consume:5,zh:'\u65e7\u5e94\u7528'});await delay(10);assert.ok(!events.some(x=>x.type==='translation'));
 });
 
 test('A ten-second audio cut carries an unfinished clause into the next segment',async()=>{
   const events=[],jobs=[];
-  const p=new PhrasePipeline({stableMs:0,tailWords:0,emit:x=>events.push(x),translate:async job=>{jobs.push(job);return job.words.at(-1)==='goal'?{consume:0,zh:''}:{consume:job.words.length,zh:'这个目标将激发我们的潜能。'};}});
+  const p=new PhrasePipeline({stableMs:0,tailWords:0,emit:x=>events.push(x),translate:async job=>{jobs.push(job);return job.words.at(-1)==='goal'?{consume:0,zh:''}:{consume:job.words.length,zh:'\u8fd9\u4e2a\u76ee\u6807\u5c06\u6fc0\u53d1\u6211\u4eec\u7684\u6f5c\u80fd。'};}});
   p.transcript({id:'a',text:'Because that goal',sourceEnded:true,endReason:'limit',sourceSequence:1,startedClientAt:100});await until(()=>jobs.length===1);assert.equal(jobs[0].final,false);
   p.transcript({id:'b',text:'will serve to organize our efforts',sourceSequence:2,startedClientAt:10100});await until(()=>events.some(x=>x.type==='translation'));
   assert.equal(jobs[1].words.join(' '),'Because that goal will serve to organize our efforts');
@@ -209,5 +209,5 @@ test('Blocked local inference under a thousand-segment flood stays bounded and r
   for(let n=1;n<1000;n++)p.transcript({id:String(n),text:'This is another pending sentence',sourceEnded:true,sourceSequence:n});
   await until(()=>calls===1);
   assert.equal(calls,1);assert.ok(p.items.size<=160);assert.ok([...p.items.values()].filter(x=>!x.invalid&&x.consumed.length<x.words.length).length<=24);
-  assert.ok(events.some(x=>x.type==='segment_warning'&&x.message.includes('积压')));p.close();await delay(0);
+  assert.ok(events.some(x=>x.type==='segment_warning'&&x.message.includes('backlog')));p.close();await delay(0);
 });

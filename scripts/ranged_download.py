@@ -64,7 +64,7 @@ def download_verified(url, destination, expected, size, workers=6, chunk_size=32
             counts[start] = count
             if time.monotonic()-last_report[0] >= 1:
                 done = offset+sum(counts.values())
-                print(f'FLOWSUB_DOWNLOAD|已下载 {done//1048576} / {size//1048576} MB',flush=True)
+                print(f'FLOWSUB_DOWNLOAD|Downloaded {done//1048576} / {size//1048576} MB',flush=True)
                 last_report[0] = time.monotonic()
 
     def part(bounds):

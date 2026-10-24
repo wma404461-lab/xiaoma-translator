@@ -1,4 +1,4 @@
-﻿$ErrorActionPreference='Stop'
+$ErrorActionPreference='Stop'
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
 $env:PYTHONIOENCODING = 'utf-8'
 $env:PYTHONUNBUFFERED = '1'
@@ -13,7 +13,7 @@ $taskPython=Join-Path $taskCache 'python312\python.exe'
 $taskPythonArgs=@()
 if($env:FLOWSUB_BOOTSTRAP_PYTHON){$taskPython=$env:FLOWSUB_BOOTSTRAP_PYTHON}
 if(!(Test-Path -LiteralPath $taskPython)){
-  Write-Output 'FLOWSUB_PROGRESS|1 / 6 · 正在准备运行组件'
+  Write-Output 'FLOWSUB_PROGRESS|1 / 6 · Preparing to run component'
   $taskInstaller=Join-Path $taskCache 'python-3.12.10-amd64.exe'
   $taskExpected='67b5635e80ea51072b87941312d00ec8927c4db9ba18938f7ad2d27b328b95fb'
   if(!(Test-Path -LiteralPath $taskInstaller) -or (Get-FileHash -LiteralPath $taskInstaller -Algorithm SHA256).Hash.ToLowerInvariant() -ne $taskExpected){
@@ -36,13 +36,13 @@ if(!$taskValidEnv){
   & $taskPython @taskPythonArgs -m venv --clear (Join-Path $taskCache 'venv')
   if($LASTEXITCODE -ne 0){throw 'Python setup failed. Use Python 3.12.'}
 }
-Write-Output 'FLOWSUB_PROGRESS|2 / 6 · 正在安装字幕组件'
+Write-Output 'FLOWSUB_PROGRESS|2 / 6 · Installing subtitle component'
 & $taskEnvPython -m pip install --disable-pip-version-check -r (Join-Path $PSScriptRoot 'asr\requirements-lock.txt')
 if($LASTEXITCODE -ne 0){throw 'Dependency installation failed.'}
-Write-Output 'FLOWSUB_PROGRESS|3 / 6 · 正在准备语言组件'
+Write-Output 'FLOWSUB_PROGRESS|3 / 6 · Preparing language component'
 & $taskEnvPython (Join-Path $PSScriptRoot 'scripts\setup-grammar.py')
 if($LASTEXITCODE -ne 0){throw 'Free grammar model installation failed.'}
-Write-Output 'FLOWSUB_PROGRESS|4 / 6 · 正在下载本地翻译模型'
+Write-Output 'FLOWSUB_PROGRESS|4 / 6 · Downloading local translation model'
 & $taskEnvPython (Join-Path $PSScriptRoot 'scripts\prepare-local.py')
 if($LASTEXITCODE -ne 0){throw 'Model preparation failed; rerun to resume.'}
 $taskNvidia=$false
@@ -52,16 +52,16 @@ if(Get-Command nvidia-smi -ErrorAction SilentlyContinue){
 }
 if($taskNvidia){
   Set-Content -LiteralPath (Join-Path $taskCache 'use-nvidia') -Value '1'
-  Write-Output 'FLOWSUB_PROGRESS|正在加速下载识别组件'
+  Write-Output 'FLOWSUB_PROGRESS|Accelerating download of recognition component'
   & $taskEnvPython (Join-Path $PSScriptRoot 'scripts\prepare-cudnn.py')
   if($LASTEXITCODE -ne 0){Write-Warning 'Optional NVIDIA recognition runtime was not installed; recognition will use CPU.'}
 }elseif(Test-Path -LiteralPath (Join-Path $taskCache 'use-nvidia')){Remove-Item -LiteralPath (Join-Path $taskCache 'use-nvidia')}
-Write-Output 'FLOWSUB_PROGRESS|5 / 6 · 正在下载语音识别模型'
+Write-Output 'FLOWSUB_PROGRESS|5 / 6 · Downloading speech recognition model'
 & $taskEnvPython (Join-Path $PSScriptRoot 'scripts\prepare-streaming.py')
 if($LASTEXITCODE -ne 0){throw 'Streaming model download failed.'}
-Write-Output 'FLOWSUB_PROGRESS|6 / 6 · 正在完成最后准备'
+Write-Output 'FLOWSUB_PROGRESS|6 / 6 · Completing final preparations'
 & $taskEnvPython (Join-Path $PSScriptRoot 'scripts\prepare-whisper.py')
 if($LASTEXITCODE -ne 0){throw 'Recognition model download failed.'}
 & $taskEnvPython (Join-Path $PSScriptRoot 'scripts\check-install.py')
 if($LASTEXITCODE -ne 0){throw 'Installation verification failed; retry to finish.'}
-Write-Output 'FLOWSUB_PROGRESS|准备完成，正在打开小马翻译'
+Write-Output 'FLOWSUB_PROGRESS|Preparation complete, opening Xiaoma Translate'

@@ -10,9 +10,9 @@ export function createGrammarGate({python=process.env.FLOWSUB_GRAMMAR_PYTHON||re
   let worker,closed=false,sequence=0,restarts=0,ready=false,bootPromise,bootReject,startup,startedAt=0;
   const pending=new Map(),inflight=new Map();
   const clearInflight=()=>{for(const timer of inflight.values())clearTimeout(timer);inflight.clear();};
-  const unavailable=()=>new Error('语法检查暂时不可用，等待恢复。');
+  const unavailable=()=>new Error('Syntax checking temporarily unavailable, waiting for recovery.');
   const boot=()=>{
-    if(closed)throw new Error('语法检查已经关闭。');
+    if(closed)throw new Error('Syntax checking has been disabled.');
     ready=false;startedAt=Date.now();
     bootPromise=new Promise((resolveReady,rejectReady)=>{
       bootReject=rejectReady;
@@ -38,7 +38,7 @@ export function createGrammarGate({python=process.env.FLOWSUB_GRAMMAR_PYTHON||re
     bootPromise.catch(()=>{});return bootPromise;
   };
   const check=async({text,previous,signal})=>{
-    if(closed)throw new Error('语法检查已经关闭。');signal?.throwIfAborted();
+    if(closed)throw new Error('Syntax checking has been disabled.');signal?.throwIfAborted();
     if(!worker){
       if(restarts>maxRestarts)throw unavailable();
       if(restarts&&Date.now()-startedAt<retryMs)throw unavailable();
@@ -50,8 +50,8 @@ export function createGrammarGate({python=process.env.FLOWSUB_GRAMMAR_PYTHON||re
     }
     signal?.throwIfAborted();
     if(closed||!worker||!ready)throw unavailable();
-    if(typeof text!=='string'||!text||text.length>4000)throw new Error('语法检查输入过长或为空。');
-    if(inflight.size>=2)throw new Error('语法检查正在忙碌。');
+    if(typeof text!=='string'||!text||text.length>4000)throw new Error('Syntax checking input is too long or empty.');
+    if(inflight.size>=2)throw new Error('Syntax checking is currently busy.');
     const id=++sequence,current=worker;
     return new Promise((resolveQuery,rejectQuery)=>{
       // A source cancellation stops its consumer, not work already queued in
@@ -60,7 +60,7 @@ export function createGrammarGate({python=process.env.FLOWSUB_GRAMMAR_PYTHON||re
       const abort=()=>{cleanup();rejectQuery(signal.reason);};
       const timer=setTimeout(()=>{
         if(closed||worker!==current)return;
-        pending.get(id)?.reject(new Error('语法检查超时。'));current.fail();stopChild(current);
+        pending.get(id)?.reject(new Error('Syntax checking timed out.'));current.fail();stopChild(current);
       },queryMs);timer.unref();
       pending.set(id,{resolve:value=>{cleanup();resolveQuery(value);},reject:error=>{cleanup();rejectQuery(error);}});
       signal?.addEventListener('abort',abort,{once:true});

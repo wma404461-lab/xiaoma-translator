@@ -14,16 +14,16 @@ export function createLocalAsr(onEvent, {spawnWorker=spawn, python=pythonPath, p
   const boot = () => {
     if (closed) return;
     bootAt=progressAt=now();healthyAt=0;ready=streamReady=false;finalProcessing.clear();
-    if (!existsSync(python)) { onEvent({ type: 'fatal', message: '本地识别尚未安装，请运行 setup-local.ps1。' }); return; }
+    if (!existsSync(python)) { onEvent({ type: 'fatal', message: 'Local recognition not installed. Please run it setup-local.ps1.' }); return; }
     let failed=false;
     const current=worker=spawnWorker(python, ['-u', fileURLToPath(new URL('../asr/streaming-worker.py', import.meta.url))], { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, PYTHONIOENCODING: 'utf-8', HF_HUB_DISABLE_SYMLINKS_WARNING: '1', FLOWSUB_CACHE: cacheRoot } });
     const failure=(timedOut=false)=>{
       if(closed||failed||worker!==current)return;failed=true;ready=streamReady=false;worker=null;finalProcessing.clear();
       stopChild(current);
       if(++restartCount<=3){
-        onEvent({type:'recovering',message:timedOut?'本地识别响应超时，正在恢复；未完成的音频将重新识别。':'正在恢复本地识别，未完成的音频将重新识别。'});
+        onEvent({type:'recovering',message:timedOut?'Local recognition timeout, recovering; unfinished audio will be re-recognized.':'Recovering local recognition; unfinished audio will be re-recognized.'});
         retryTimer=setTimeout(boot,restartCount*retryMs);retryTimer.unref();
-      }else onEvent({type:'fatal',message:'识别程序连续启动失败或无响应，请重新开始翻译。'});
+      }else onEvent({type:'fatal',message:'Recognition program failed to start consecutively or is unresponsive. Please restart translation.'});
     };
     current.fail=failure;
     const lines = createInterface({ input: current.stdout });

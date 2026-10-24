@@ -26,7 +26,7 @@ test('Bounded resegmentation expands only through stable heard words and exclude
  const initial='When you get',complete='When you get to the station',requests=[],jobs=[];
  const translate=createSemanticTranslator({continuationCheck:needsParticleContinuation,repairContinuation:true,
   fetchImpl:async(_,options)=>{requests.push(JSON.parse(options.body));return response(requests.length===1?initial:complete);},
-  grammarCheck:async()=>({allow:true}),translator:async job=>{jobs.push(job);return{text:'当你到车站时。',durationMs:1};}});
+  grammarCheck:async()=>({allow:true}),translator:async job=>{jobs.push(job);return{text:'\u5f53\u4f60\u5230\u8f66\u7ad9\u65f6。',durationMs:1};}});
  const result=await translate({words:(complete+' another topic').split(' '),lookahead:'private tentative continuation',signal:AbortSignal.timeout(1000)});
  assert.equal(result.source,complete);assert.equal(result.consume,6);assert.equal(requests.length,2);assert.equal(jobs[0].text,complete);
  assert.ok(!JSON.stringify(requests).includes('private tentative'));assert.ok(!JSON.stringify(jobs).includes('another topic'));
@@ -44,7 +44,7 @@ test('A boundary repair cannot invent a destination that is only tentative or ex
 
 test('Complete thank-you objects can be repaired with their heard condition instead of being rejected as a subject tail',async()=>{
  let calls=0;const prefix='We thank you',source='We thank you when the work is finished';
- const translate=createSemanticTranslator({repairContinuation:true,fetchImpl:async()=>response(++calls===1?prefix:source),grammarCheck:async()=>({allow:true}),translator:async()=>({text:'工作完成时我们感谢你。',durationMs:1})});
+ const translate=createSemanticTranslator({repairContinuation:true,fetchImpl:async()=>response(++calls===1?prefix:source),grammarCheck:async()=>({allow:true}),translator:async()=>({text:'\u5de5\u4f5c\u5b8c\u6210\u65f6\u6211\u4eec\u611f\u8c22\u4f60。',durationMs:1})});
  const result=await translate({words:source.split(' '),signal:AbortSignal.timeout(1000)});
  assert.equal(result.source,source);assert.equal(calls,2);
 });
@@ -52,7 +52,7 @@ test('Short complete statements can pass after syntax validation without adding 
   let calls=0;const source="Man that's insane";
   const translate=createSemanticTranslator({minBoundaryWords:4,minSelectedWords:2,grammarCheck:async()=>({allow:true}),fetchImpl:async()=>{
     if(++calls===1)return response(source);
-    return new Response(`data: ${JSON.stringify({choices:[{delta:{content:'太夸张了。'}}]})}\n\ndata: ${JSON.stringify({choices:[{delta:{},finish_reason:'stop'}]})}\n\n`);
+    return new Response(`data: ${JSON.stringify({choices:[{delta:{content:'\u592a\u5938\u5f20\u4e86。'}}]})}\n\ndata: ${JSON.stringify({choices:[{delta:{},finish_reason:'stop'}]})}\n\n`);
   }});
   const result=await translate({words:"Man that's insane that is incredible".split(' '),previous:[],signal:AbortSignal.timeout(1000)});
   assert.equal(result.source,source);assert.equal(result.consume,3);assert.equal(calls,2);
@@ -83,10 +83,10 @@ test('Captured with qualification cannot commit an unqualified negative or enter
 test('Candidate MT receives only the validated prefix, never tentative or unconsumed speech',async()=>{
   const selected='These results look very good',jobs=[];
   const translate=createSemanticTranslator({fetchImpl:async()=>response(selected),grammarCheck:async()=>({allow:true}),translator:async job=>{
-    jobs.push(job);return{text:'这些结果看起来很好。',firstMs:1,durationMs:2};
+    jobs.push(job);return{text:'\u8fd9\u4e9b\u7ed3\u679c\u770b\u8d77\u6765\u5f88\u597d。',firstMs:1,durationMs:2};
   }});
   const result=await translate({words:(selected+' another topic starts now').split(' '),lookahead:'private tentative tail',previous:[],signal:AbortSignal.timeout(1000)});
   assert.equal(result.source,selected);assert.equal(result.consume,5);
-  assert.equal(jobs[0].text,selected);assert.equal(result.zh,'这些结果看起来很好。');
+  assert.equal(jobs[0].text,selected);assert.equal(result.zh,'\u8fd9\u4e9b\u7ed3\u679c\u770b\u8d77\u6765\u5f88\u597d。');
   assert.ok(!JSON.stringify(jobs).includes('private tentative tail'));assert.ok(!JSON.stringify(jobs).includes('another topic'));
 });

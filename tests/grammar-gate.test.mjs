@@ -14,7 +14,7 @@ test('Aborted syntax queries cannot fill the worker input with unlimited queued 
       const abort=new AbortController(),query=gate.check({text:'HOLD',signal:abort.signal});
       await wait(10);abort.abort();await assert.rejects(query,{name:'AbortError'});
     }
-    for(let n=0;n<100;n++)await assert.rejects(gate.check({text:'SAFE'}),/忙碌/);
+    for(let n=0;n<100;n++)await assert.rejects(gate.check({text:'SAFE'}),/busy/);
     // The canceled requests must still expire; otherwise this queue stays full
     // forever while the worker remains alive but cannot produce a response.
     await wait(650);assert.equal((await gate.check({text:'SAFE'})).allow,true);assert.equal(boots,2);
@@ -23,17 +23,17 @@ test('Aborted syntax queries cannot fill the worker input with unlimited queued 
 test('A hung syntax query terminates its owned worker and a new query recovers',async()=>{
   let boots=0;const gate=createGrammarGate({...options,queryMs:100,spawnWorker:(_,__,settings)=>{boots++;return spawn(process.execPath,[fixture],settings);}});
   try{
-    await assert.rejects(gate.check({text:'HOLD'}),/超时/);await wait(70);
+    await assert.rejects(gate.check({text:'HOLD'}),/timed out/);await wait(70);
     assert.equal((await gate.check({text:'SAFE'})).allow,true);assert.equal(boots,2);
   }finally{gate.close();}
 });
 test('Syntax worker crashes reject pending speech and bounded recovery never bypasses the check',async()=>{
   let boots=0;const gate=createGrammarGate({...options,maxRestarts:1,spawnWorker:(_,__,settings)=>{boots++;return spawn(process.execPath,[fixture],settings);}});
   try{
-    await assert.rejects(gate.check({text:'CRASH'}),/不可用/);
+    await assert.rejects(gate.check({text:'CRASH'}),/unavailable/);
     assert.equal((await gate.check({text:'NOUN'})).allow,false);
-    await assert.rejects(gate.check({text:'CRASH'}),/不可用/);
-    await assert.rejects(gate.check({text:'SAFE'}),/不可用/);assert.equal(boots,2);
+    await assert.rejects(gate.check({text:'CRASH'}),/unavailable/);
+    await assert.rejects(gate.check({text:'SAFE'}),/unavailable/);assert.equal(boots,2);
   }finally{gate.close();}
 });
 

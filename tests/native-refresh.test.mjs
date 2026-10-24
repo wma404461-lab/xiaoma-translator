@@ -10,7 +10,7 @@ async function fixture(options={}){
   const app=createApp({port:0,checkModel:false,nativeRetryMs:20,
     asrFactory:emit=>{const worker={emit,closed:0,transcribe(){},close(){this.closed++;}};workers.push(worker);queueMicrotask(()=>emit({type:'ready'}));return worker;},
     captureFactory:()=>{const capture={closed:0,close(){this.closed++;}};captures.push(capture);return capture;},
-    phraseTranslate:async job=>({consume:job.words.length,zh:'已恢复'}),...options});
+    phraseTranslate:async job=>({consume:job.words.length,zh:'\u5df2\u6062\u590d'}),...options});
   const port=await app.listen(),overlay=new WebSocket(`ws://127.0.0.1:${port}/api/overlay?token=${app.token}`);
   overlay.on('message',raw=>packets.push(JSON.parse(raw)));
   await new Promise(done=>overlay.once('open',done));overlay.send(JSON.stringify({type:'native-ready'}));overlay.send(JSON.stringify({type:'native-control',action:'start'}));
@@ -24,7 +24,7 @@ test('Refresh replaces stuck capture and recognition once, clears old captions a
     await until(()=>f.workers.length===2&&f.app.sessions.size===1);
     assert.equal(f.workers[0].closed,1);assert.equal(f.captures[0].closed,1);assert.equal(refreshCalls,1);
     assert.notEqual([...f.app.sessions.keys()][0],oldKey);
-    assert.ok(f.packets.some(packet=>packet.state==='刷新中'));
+    assert.ok(f.packets.some(packet=>packet.state==='Refreshing'));
     assert.ok(f.packets.some(packet=>packet.type==='engine-state'&&packet.running));
   }finally{await f.close();}
 });
@@ -35,7 +35,7 @@ test('Exhausted recognition recovers automatically, stays bounded, and manual re
       f.workers[index].emit({type:'fatal',message:'Fixture recognition failure'});
       if(index<3)await until(()=>f.workers.length===index+2);
     }
-    await until(()=>f.packets.some(packet=>packet.state==='等待刷新'));
+    await until(()=>f.packets.some(packet=>packet.state==='Waiting for refresh'));
     await delay(100);assert.equal(f.workers.length,4);
     f.control('refresh');await until(()=>f.workers.length===5);
     assert.equal(f.app.sessions.size,1);
