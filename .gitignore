@@ -1,0 +1,17 @@
+node_modules/
+build/
+dist/
+.runtime/
+.git-checkouts/
+data/
+logs/
+uploads/
+test-output/
+__pycache__/
+*.pyc
+.env
+*.key
+*.pfx
+*.p12
+成品/
+发布/

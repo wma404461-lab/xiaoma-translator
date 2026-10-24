@@ -1,0 +1,7 @@
+faster-whisper==1.2.1
+PyQt6>=6.8,<7
+PyAudioWPatch>=0.2.12
+sherpa-onnx>=1.12
+pycaw==20260927
+comtypes==1.4.17
+psutil==7.2.2
